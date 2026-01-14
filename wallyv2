@@ -1,6 +1,5 @@
-
+local function getlib()
 	-- forked by SharKK | SharKK#1954
-  -- Slightly edit for usage (Fix Toggle bug and add Label)
 
 	local library = { count = 0, queue = {}, callbacks = {}, rainbowtable = {}, toggled = true, binds = {} }
 	local defaults
@@ -275,7 +274,6 @@
 					end,
 				}
 			end
-
 
 			function types:Button(name, callback)
 				callback = callback or function() end
@@ -570,10 +568,11 @@
 					BackgroundColor3 = library.options.sectncolor,
 					BorderSizePixel = 0,
 					LayoutOrder = order,
-					
+
 					Parent = self.container,
 				})
-				local label = library:Create("TextLabel", {
+				local label =
+					library:Create("TextLabel", {
 						Name = "section_lbl",
 						Text = name,
 						BackgroundTransparency = 0,
@@ -586,12 +585,11 @@
 						TextSize = library.options.fontsize,
 						TextStrokeTransparency = library.options.textstroke,
 						TextStrokeColor3 = library.options.strokecolor,
-						Parent = check
-					}),
-				self:Resize()
+						Parent = check,
+					}), self:Resize()
 				local func = {}
 				function func:Set(new)
-					label.Text = new 
+					label.Text = new
 				end
 				return func
 			end
@@ -888,29 +886,39 @@
 			end
 
 			function types:Dropdown(name, options, callback)
+				options = options or {}
+				callback = callback or function() end
+
+				assert(options.flag, "Dropdown requires a flag")
+
 				local location = options.location or self.flags
-				local flag = options.flag or ""
-				local callback = callback or function() end
 				local list = options.list or {}
 
-				location[flag] = list[1]
+				assert(#list > 0, "Dropdown list cannot be empty")
+
+				local default = options.default or list[1]
+				location[options.flag] = default
+
+				local inputConnection
+				local container
+
 				local check = library:Create("Frame", {
 					BackgroundTransparency = 1,
 					Size = UDim2.new(1, 0, 0, 25),
-					BackgroundColor3 = Color3.fromRGB(25, 25, 25),
-					BorderSizePixel = 0,
 					LayoutOrder = self:GetOrder(),
+					Parent = self.container,
+
 					library:Create("Frame", {
 						Name = "dropdown_lbl",
-						BackgroundTransparency = 0,
 						BackgroundColor3 = library.options.dropcolor,
-						Position = UDim2.new(0, 5, 0, 4),
 						BorderColor3 = library.options.bordercolor,
+						Position = UDim2.new(0, 5, 0, 4),
 						Size = UDim2.new(1, -10, 0, 20),
+
 						library:Create("TextLabel", {
 							Name = "Selection",
-							Size = UDim2.new(1, 0, 1, 0),
-							Text = list[1],
+							Size = UDim2.new(1, -25, 1, 0),
+							Text = default,
 							TextColor3 = library.options.textcolor,
 							BackgroundTransparency = 1,
 							Font = library.options.font,
@@ -918,11 +926,12 @@
 							TextStrokeTransparency = library.options.textstroke,
 							TextStrokeColor3 = library.options.strokecolor,
 						}),
+
 						library:Create("TextButton", {
 							Name = "drop",
 							BackgroundTransparency = 1,
 							Size = UDim2.new(0, 20, 1, 0),
-							Position = UDim2.new(1, -25, 0, 0),
+							Position = UDim2.new(1, -20, 0, 0),
 							Text = "v",
 							TextColor3 = library.options.textcolor,
 							Font = library.options.font,
@@ -931,125 +940,90 @@
 							TextStrokeColor3 = library.options.strokecolor,
 						}),
 					}),
-					Parent = self.container,
 				})
 
-				local button = check:FindFirstChild("dropdown_lbl").drop
-				local input
+				local label = check.dropdown_lbl
+				local button = label.drop
+				local selection = label.Selection
 
-				button.MouseButton1Click:connect(function()
-					if input and input.Connected then
+				local function close()
+					if inputConnection then
+						inputConnection:Disconnect()
+						inputConnection = nil
+					end
+					if container then
+						container:Destroy()
+						container = nil
+					end
+					selection.TextColor3 = library.options.textcolor
+					selection.Text = location[options.flag]
+				end
+
+				button.MouseButton1Click:Connect(function()
+					if container then
 						return
 					end
 
-					check:FindFirstChild("dropdown_lbl"):WaitForChild("Selection").TextColor3 =
-						Color3.fromRGB(60, 60, 60)
-					check:FindFirstChild("dropdown_lbl"):WaitForChild("Selection").Text = name
-					local c = 0
-					for i, v in next, list do
-						c = c + 20
-					end
+					selection.Text = name
+					selection.TextColor3 = Color3.fromRGB(60, 60, 60)
 
-					local size = UDim2.new(1, 0, 0, c)
+					local height = math.min(#list * 20, 100)
+					local scroll = (#list * 20 > 100) and 5 or 0
 
-					local clampedSize
-					local scrollSize = 0
-					if size.Y.Offset > 100 then
-						clampedSize = UDim2.new(1, 0, 0, 100)
-						scrollSize = 5
-					end
-
-					local goSize = (clampedSize ~= nil and clampedSize) or size
-					local container = library:Create("ScrollingFrame", {
-						TopImage = "rbxasset://textures/ui/Scroll/scroll-middle.png",
-						BottomImage = "rbxasset://textures/ui/Scroll/scroll-middle.png",
+					container = library:Create("ScrollingFrame", {
 						Name = "DropContainer",
-						Parent = check:FindFirstChild("dropdown_lbl"),
-						Size = UDim2.new(1, 0, 0, 0),
+						Parent = label,
+						Position = UDim2.new(0, 0, 1, 0),
+						Size = UDim2.new(1, 0, 0, height),
+						CanvasSize = UDim2.new(0, 0, 0, #list * 20),
+						ScrollBarThickness = scroll,
 						BackgroundColor3 = library.options.bgcolor,
 						BorderColor3 = library.options.bordercolor,
-						Position = UDim2.new(0, 0, 1, 0),
-						ScrollBarThickness = scrollSize,
-						CanvasSize = UDim2.new(0, 0, 0, size.Y.Offset),
 						ZIndex = 5,
 						ClipsDescendants = true,
-						library:Create("UIListLayout", {
-							Name = "List",
-							SortOrder = Enum.SortOrder.LayoutOrder,
-						}),
+
+						library:Create("UIListLayout"),
 					})
 
-					for i, v in next, list do
+					for i, v in ipairs(list) do
 						local btn = library:Create("TextButton", {
+							Parent = container,
 							Size = UDim2.new(1, 0, 0, 20),
+							Text = v,
+							LayoutOrder = i,
+							ZIndex = 5,
 							BackgroundColor3 = library.options.btncolor,
 							BorderColor3 = library.options.bordercolor,
-							Text = v,
+							TextColor3 = library.options.textcolor,
 							Font = library.options.font,
 							TextSize = library.options.fontsize,
-							LayoutOrder = i,
-							Parent = container,
-							ZIndex = 5,
-							TextColor3 = library.options.textcolor,
 							TextStrokeTransparency = library.options.textstroke,
 							TextStrokeColor3 = library.options.strokecolor,
 						})
 
-						btn.MouseButton1Click:connect(function()
-							check:FindFirstChild("dropdown_lbl"):WaitForChild("Selection").TextColor3 =
-								library.options.textcolor
-							check:FindFirstChild("dropdown_lbl"):WaitForChild("Selection").Text = btn.Text
-
-							location[flag] = tostring(btn.Text)
-							callback(location[flag])
-
-							game:GetService("Debris"):AddItem(container, 0)
-							input:disconnect()
+						btn.MouseButton1Click:Connect(function()
+							location[options.flag] = v
+							callback(v)
+							close()
 						end)
 					end
 
-					container:TweenSize(goSize, "Out", "Quint", 0.3, true)
-
-					local function isInGui(frame)
-						local mloc = game:GetService("UserInputService"):GetMouseLocation()
-						local mouse = Vector2.new(mloc.X, mloc.Y - 36)
-
-						local x1, x2 = frame.AbsolutePosition.X, frame.AbsolutePosition.X + frame.AbsoluteSize.X
-						local y1, y2 = frame.AbsolutePosition.Y, frame.AbsolutePosition.Y + frame.AbsoluteSize.Y
-
-						return (mouse.X >= x1 and mouse.X <= x2) and (mouse.Y >= y1 and mouse.Y <= y2)
-					end
-
-					input = game:GetService("UserInputService").InputBegan:connect(function(a)
-						if a.UserInputType == Enum.UserInputType.MouseButton1 and (not isInGui(container)) then
-							check:FindFirstChild("dropdown_lbl"):WaitForChild("Selection").TextColor3 =
-								library.options.textcolor
-							check:FindFirstChild("dropdown_lbl"):WaitForChild("Selection").Text = location[flag]
-
-							container:TweenSize(UDim2.new(1, 0, 0, 0), "In", "Quint", 0.3, true)
-							wait(0.15)
-
-							game:GetService("Debris"):AddItem(container, 0)
-							input:disconnect()
+					inputConnection = game:GetService("UserInputService").InputBegan:Connect(function(input)
+						if input.UserInputType == Enum.UserInputType.MouseButton1 then
+							close()
 						end
 					end)
 				end)
 
 				self:Resize()
-				local function reload(self, array)
-					options = array
-					location[flag] = array[1]
-					pcall(function()
-						input:disconnect()
-					end)
-					check:WaitForChild("dropdown_lbl").Selection.Text = location[flag]
-					check:FindFirstChild("dropdown_lbl"):WaitForChild("Selection").TextColor3 =
-						library.options.textcolor
-					game:GetService("Debris"):AddItem(container, 0)
-				end
 
 				return {
-					Refresh = reload,
+					Refresh = function(_, newList, newDefault)
+						list = newList or list
+						default = newDefault or list[1]
+						location[options.flag] = default
+						selection.Text = default
+					end,
 				}
 			end
 		end
@@ -1167,3 +1141,4 @@
 	end
 
 	return library
+end
