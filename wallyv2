@@ -1,4 +1,4 @@
-local function getlib()
+
 	-- forked by SharKK | SharKK#1954
 
 	local library = { count = 0, queue = {}, callbacks = {}, rainbowtable = {}, toggled = true, binds = {} }
